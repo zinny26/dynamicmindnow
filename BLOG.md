@@ -8,10 +8,13 @@ are still served at `/`, `/privacy.html` and `/terms.html`.
 ## Requirements
 
 - Node 20 or newer
-- A PostgreSQL database
-- A host that runs a Node process (Render, Railway, Fly.io, a VPS, ...).
-  Static hosting such as GitHub Pages cannot run the webhook or the
-  server-rendered blog pages.
+- A PostgreSQL database (Neon, Supabase, or any other provider)
+- Netlify, or any host that runs a Node process
+
+The site is deployed on **Netlify**. `netlify.toml` publishes the repository
+root exactly as before — `index.html`, `privacy.html` and `terms.html` are still
+static files served straight from the CDN — and sends only `/blog`, `/blog/*`,
+`/sitemap.xml`, `/robots.txt` and `/api/articles-webhook` to a Node function.
 
 ## Setup
 
@@ -114,14 +117,47 @@ Each article page serves, in the initial HTML response:
 
 No JavaScript is required to read any of it.
 
-## Deploying
+## Deploying to Netlify
 
-Any Node host works. `npm start` is the entrypoint and the app listens on
-`$PORT`. A `Dockerfile` is included for hosts that build from one. After
-deploying, point the domain at the Node host and confirm:
+1. **Set the environment variables** in Netlify: *Site configuration →
+   Environment variables*. Add `GRANDRANKER_SECRET`, `DATABASE_URL` and
+   `SITE_URL=https://adhdanxietydepressionhelp.org`. This is where the webhook
+   key lives — it is never committed.
+2. **Provision Postgres.** Netlify has no database of its own. Neon's free tier
+   works well; Netlify can provision one for you via *Extensions → Neon*. Use
+   the provider's **pooled** connection string (the one with `-pooler` in the
+   host for Neon, or port 6543 for Supabase): serverless functions open many
+   short-lived connections and a pooled endpoint keeps that from exhausting the
+   database.
+3. **Deploy.** Netlify installs dependencies and bundles
+   `netlify/functions/server.js` automatically. There is no build step for the
+   static pages.
+4. **Confirm the webhook:**
 
-```bash
-curl -i https://adhdanxietydepressionhelp.org/api/articles-webhook
-```
+   ```bash
+   curl -i https://adhdanxietydepressionhelp.org/api/articles-webhook
+   ```
 
-A `200` with `{"status":"ok"}` means the publisher can reach the endpoint.
+   A `200` with `{"status":"ok"}` means the publisher can reach the endpoint.
+
+### Netlify's 6 MB request limit
+
+The endpoint is configured to accept 10 MB bodies, but **Netlify functions cap
+requests at 6 MB** — the platform rejects a larger request before it reaches
+this code, and the sender sees a `413` that no application setting can change.
+
+In practice one article with full HTML is tens of kilobytes, so a normal batch
+is nowhere near the ceiling. It only matters for a very large backfill. If the
+publisher ever hits it, have them send articles in smaller batches; the upsert
+is keyed on `external_id`, so splitting a batch changes nothing about the
+result.
+
+The 10 MB limit in the code is still correct and takes effect as-is on any host
+without that platform cap.
+
+## Running anywhere else
+
+`npm start` runs the same app as an ordinary Node server on `$PORT`, and a
+`Dockerfile` is included. `src/app.js` builds the Express app, `src/server.js`
+runs it as a long-lived process, and `netlify/functions/server.js` wraps the
+same app for Netlify — the routes and behaviour are identical in both.

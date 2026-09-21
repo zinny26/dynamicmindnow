@@ -1,6 +1,7 @@
 import express from 'express';
 import { desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { ensureSchemaReady } from '../db/ensure-schema.js';
 import { articles } from '../db/schema.js';
 import { baseUrl } from '../lib/html.js';
 import { renderArticle, renderBlogIndex, renderNotFound } from '../views/blog.js';
@@ -8,6 +9,9 @@ import { renderArticle, renderBlogIndex, renderNotFound } from '../views/blog.js
 export const router = express.Router();
 
 const LIST_LIMIT = 200;
+
+// Serverless containers have no boot step, so make sure the table exists.
+router.use(ensureSchemaReady);
 
 /** Listing page — newest first, rendered server-side for crawlers. */
 router.get('/blog', async (req, res) => {

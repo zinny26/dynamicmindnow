@@ -18,7 +18,12 @@ const wantsSsl = /[?&]sslmode=(require|verify-ca|verify-full)/.test(connectionSt
 export const pool = new pg.Pool({
   connectionString,
   ssl: wantsSsl ? { rejectUnauthorized: process.env.DATABASE_SSL_VERIFY === 'true' } : false,
-  max: Number(process.env.DATABASE_POOL_MAX ?? 5),
+  // Serverless containers are many and short-lived, so each one holds a
+  // minimal pool and releases it quickly. Use your provider's *pooled*
+  // connection string (Neon/Supabase pgbouncer) when deploying to Netlify.
+  max: Number(process.env.DATABASE_POOL_MAX ?? 1),
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 10_000,
 });
 
 export const db = drizzle(pool, { schema });

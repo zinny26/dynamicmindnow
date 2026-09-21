@@ -1,6 +1,7 @@
 import express from 'express';
 import { desc, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { ensureSchemaReady } from '../db/ensure-schema.js';
 import { articles } from '../db/schema.js';
 import { baseUrl, escapeHtml, isoDate } from '../lib/html.js';
 
@@ -44,7 +45,7 @@ router.get('/robots.txt', (req, res) => {
  * sitemap.xml — built from the articles table on every request, so a freshly
  * received article is listed immediately.
  */
-router.get('/sitemap.xml', async (req, res) => {
+router.get('/sitemap.xml', ensureSchemaReady, async (req, res) => {
   const site = baseUrl(req);
   const rows = await db
     .select({

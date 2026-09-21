@@ -1,76 +1,19 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
-import express from 'express';
 import { ensureSchema } from './db/ensure-schema.js';
-import { baseUrl } from './lib/html.js';
-import { renderNotFound } from './views/blog.js';
-import { router as blogRouter } from './routes/blog.js';
-import { router as seoRouter } from './routes/seo.js';
-import { router as webhookRouter } from './routes/webhook.js';
-
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-export const app = express();
-
-// Hosting platforms terminate TLS in front of the app; trust their headers so
-// req.protocol and the canonical URLs come out as https.
-app.set('trust proxy', 1);
-app.disable('x-powered-by');
-
-// The webhook and the SEO routes are registered before any static or fallback
-// handling, so nothing else can swallow /sitemap.xml, /robots.txt or /blog.
-app.use('/api/articles-webhook', webhookRouter);
-app.use(seoRouter);
-app.use(blogRouter);
-
-// The existing marketing pages.
-app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-app.use(
-  express.static(rootDir, {
-    extensions: ['html'],
-    index: false,
-    dotfiles: 'ignore',
-    maxAge: '1h',
-  }),
-);
-
-// Anything unmatched is a genuine 404 — there is no catch-all serving HTML 200s.
-app.use((req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'Not found' });
-  }
-  return res
-    .status(404)
-    .type('html')
-    .send(renderNotFound({ canonicalUrl: `${baseUrl(req)}/blog` }));
-});
-
-app.use((error, req, res, _next) => {
-  console.error('[server] unhandled error:', error);
-  if (res.headersSent) return;
-  if (req.path.startsWith('/api/')) {
-    return res.status(500).json({ error: 'Internal error' });
-  }
-  return res.status(500).type('html').send('<h1>Something went wrong</h1>');
-});
+import { createApp } from './app.js';
 
 const port = Number(process.env.PORT ?? 3000);
 
-async function start() {
-  try {
-    await ensureSchema();
-    console.log('[server] articles table is ready');
-  } catch (error) {
-    // Keep serving the static site even if the database is unreachable.
-    console.error('[server] could not prepare the database schema:', error.message);
-  }
+const app = createApp();
 
-  app.listen(port, () => {
-    console.log(`[server] listening on http://localhost:${port}`);
-  });
+try {
+  await ensureSchema();
+  console.log('[server] articles table is ready');
+} catch (error) {
+  // Keep serving the static site even if the database is unreachable.
+  console.error('[server] could not prepare the database schema:', error.message);
 }
 
-if (process.env.NODE_ENV !== 'test') {
-  start();
-}
+app.listen(port, () => {
+  console.log(`[server] listening on http://localhost:${port}`);
+});

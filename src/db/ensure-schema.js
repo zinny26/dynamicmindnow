@@ -40,3 +40,24 @@ export async function ensureSchema() {
     sql`CREATE INDEX IF NOT EXISTS articles_published_at_idx ON articles (published_at)`,
   );
 }
+
+let pending;
+
+/**
+ * Runs `ensureSchema` at most once per process. Serverless invocations have no
+ * startup hook, so the first request that needs the table waits for the DDL and
+ * every later request in that container reuses the resolved promise. A failure
+ * clears the cache so the next request retries instead of failing forever.
+ */
+export function ensureSchemaOnce() {
+  pending ??= ensureSchema().catch((error) => {
+    pending = undefined;
+    throw error;
+  });
+  return pending;
+}
+
+/** Express middleware form of {@link ensureSchemaOnce}. */
+export function ensureSchemaReady(_req, _res, next) {
+  ensureSchemaOnce().then(() => next(), next);
+}

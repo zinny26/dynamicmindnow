@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { ensureSchemaReady } from '../db/ensure-schema.js';
 import { articles } from '../db/schema.js';
 import { slugify } from '../lib/html.js';
 
@@ -147,6 +148,7 @@ router.get('/', (_req, res) => {
 router.post(
   '/',
   requireApiKey,
+  ensureSchemaReady,
   express.json({ limit: BODY_LIMIT }),
   async (req, res) => {
     const payload = req.body ?? {};

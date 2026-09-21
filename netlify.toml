@@ -1,0 +1,37 @@
+# Publishes the repository root exactly as before, so index.html, privacy.html
+# and terms.html keep being served as static files straight from the CDN.
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Only these paths reach the Node function. Everything else stays static, and
+# because there is no catch-all, /sitemap.xml cannot be swallowed by the app's
+# HTML. Netlify serves a matching static file before applying a redirect, so
+# these never shadow an existing file.
+[[redirects]]
+  from = "/api/articles-webhook"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/blog"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/blog/*"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/robots.txt"
+  to = "/.netlify/functions/server"
+  status = 200
