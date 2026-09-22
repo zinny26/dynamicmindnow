@@ -3,11 +3,17 @@ import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schema.js';
 
-const connectionString = process.env.DATABASE_URL;
+// Netlify's built-in database sets its own variable names, so accept those too
+// and nothing has to be copied by hand. A pooled URL is always preferred.
+const connectionString =
+  process.env.DATABASE_URL ||
+  process.env.NETLIFY_DATABASE_URL ||
+  process.env.NETLIFY_DATABASE_URL_UNPOOLED;
 
 if (!connectionString) {
   throw new Error(
-    'DATABASE_URL is not set. Copy .env.example to .env and point DATABASE_URL at a Postgres database.',
+    'No database connection string found. Set DATABASE_URL (or add a Netlify ' +
+      'database, which sets NETLIFY_DATABASE_URL for you).',
   );
 }
 

@@ -26,7 +26,7 @@ npm start
 
 | Variable             | Required | Purpose                                                        |
 | -------------------- | -------- | -------------------------------------------------------------- |
-| `DATABASE_URL`       | yes      | Postgres connection string.                                     |
+| `DATABASE_URL`       | yes*     | Postgres connection string. *Optional if `NETLIFY_DATABASE_URL` is set by Netlify's database. |
 | `GRANDRANKER_SECRET` | yes      | Shared key the publisher sends in the `X-API-Key` header.       |
 | `SITE_URL`           | yes      | Public origin, e.g. `https://adhdanxietydepressionhelp.org`. Used for canonical URLs, `og:url` and the sitemap. |
 | `PORT`               | no       | Listen port. Most hosts set this for you. Defaults to `3000`.   |
@@ -120,15 +120,19 @@ No JavaScript is required to read any of it.
 ## Deploying to Netlify
 
 1. **Set the environment variables** in Netlify: *Site configuration →
-   Environment variables*. Add `GRANDRANKER_SECRET`, `DATABASE_URL` and
-   `SITE_URL=https://adhdanxietydepressionhelp.org`. This is where the webhook
-   key lives — it is never committed.
-2. **Provision Postgres.** Netlify has no database of its own. Neon's free tier
-   works well; Netlify can provision one for you via *Extensions → Neon*. Use
-   the provider's **pooled** connection string (the one with `-pooler` in the
-   host for Neon, or port 6543 for Supabase): serverless functions open many
-   short-lived connections and a pooled endpoint keeps that from exhausting the
-   database.
+   Environment variables*. Add `GRANDRANKER_SECRET` and
+   `SITE_URL=https://adhdanxietydepressionhelp.org`, plus `DATABASE_URL` unless
+   you use Netlify's own database (step 2). This is where the webhook key lives
+   — it is never committed.
+2. **Provision Postgres.** The simplest route is Netlify's own database, added
+   from the site dashboard: it provisions Postgres and sets its connection
+   variable automatically, with nothing to copy. The app reads
+   `NETLIFY_DATABASE_URL` when `DATABASE_URL` is absent, so it works as-is.
+
+   Any other Postgres works too — set `DATABASE_URL` yourself and use the
+   provider's **pooled** connection string (`-pooler` in the host for Neon, port
+   6543 for Supabase). Serverless functions open many short-lived connections,
+   and a pooled endpoint keeps that from exhausting the database.
 3. **Deploy.** Netlify installs dependencies and bundles
    `netlify/functions/server.js` automatically. There is no build step for the
    static pages.
